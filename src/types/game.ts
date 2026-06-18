@@ -54,6 +54,19 @@ export interface EventChoice {
   addCardId?: string
 }
 
+export type ReminderType = 'birthday' | 'conflict' | 'story' | 'affinity'
+
+export interface Reminder {
+  id: string
+  type: ReminderType
+  title: string
+  description: string
+  targetDay: number
+  characterId?: string
+  eventId?: string
+  dismissed: boolean
+}
+
 export interface GameEventConfig {
   id: string
   title: string

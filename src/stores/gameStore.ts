@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { TimeOfDay, ActionType, GameEventConfig, EventChoice } from '../types/game'
+import type { TimeOfDay, ActionType, GameEventConfig, EventChoice, Reminder } from '../types/game'
 import gameConfig from '../config/gameConfig'
 import {
   clamp,
@@ -11,7 +11,8 @@ import {
   isGiftDisliked,
   getTimeLabel,
   getNextTimeSlot,
-  getMoodLabel
+  getMoodLabel,
+  computeUpcomingReminders
 } from '../utils/gameUtils'
 
 export interface CharacterState {
@@ -67,6 +68,7 @@ export const useGameStore = defineStore('game', () => {
   const collectedCards = ref<string[]>([])
   const logs = ref<LogEntry[]>([])
   const history = ref<HistorySnapshot[]>([])
+  const dismissedReminderIds = ref<string[]>([])
   let logIdCounter = 0
 
   const unlockedCharacters = computed(() =>
@@ -80,6 +82,24 @@ export const useGameStore = defineStore('game', () => {
   const currentCharacterConfig = computed(() =>
     gameConfig.characters.find(c => c.id === selectedCharacterId.value) || null
   )
+
+  const REMINDER_ADVANCE_DAYS = 5
+
+  const upcomingReminders = computed<Reminder[]>(() =>
+    computeUpcomingReminders(gameConfig.events, gameConfig.characters, {
+      currentDay: day.value,
+      characters: characters.value.map(c => ({
+        id: c.id,
+        affinity: c.affinity,
+        unlocked: c.unlocked
+      })),
+      triggeredEvents: triggeredEvents.value,
+      dismissedReminderIds: dismissedReminderIds.value,
+      advanceDays: REMINDER_ADVANCE_DAYS
+    })
+  )
+
+  const activeReminderCount = computed(() => upcomingReminders.value.length)
 
   function addLog(type: LogEntry['type'], message: string, characterId?: string) {
     logs.value.push({
@@ -418,6 +438,12 @@ export const useGameStore = defineStore('game', () => {
     darkMode.value = !darkMode.value
   }
 
+  function dismissReminder(reminderId: string) {
+    if (!dismissedReminderIds.value.includes(reminderId)) {
+      dismissedReminderIds.value.push(reminderId)
+    }
+  }
+
   function resetGame() {
     day.value = 1
     timeSlot.value = 'morning'
@@ -439,6 +465,7 @@ export const useGameStore = defineStore('game', () => {
     collectedCards.value = []
     logs.value = []
     history.value = []
+    dismissedReminderIds.value = []
     logIdCounter = 0
 
     addLog('system', '🎮 游戏开始！欢迎来到恋爱物语')
@@ -470,6 +497,9 @@ export const useGameStore = defineStore('game', () => {
     currentEvent,
     showEventModal,
     darkMode,
+    upcomingReminders,
+    activeReminderCount,
+    dismissedReminderIds,
     addLog,
     saveHistory,
     rollbackToStep,
@@ -480,6 +510,7 @@ export const useGameStore = defineStore('game', () => {
     selectCharacter,
     handleEventChoice,
     toggleDarkMode,
+    dismissReminder,
     resetGame,
     initGame,
     checkAndTriggerEvent

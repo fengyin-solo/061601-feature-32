@@ -11,6 +11,7 @@ import SaveModal from './components/SaveModal.vue'
 import CardCollection from './components/CardCollection.vue'
 import HistoryPanel from './components/HistoryPanel.vue'
 import GiftModal from './components/GiftModal.vue'
+import ReminderPanel from './components/ReminderPanel.vue'
 
 const gameStore = useGameStore()
 const saveStore = useSaveStore()
@@ -60,6 +61,7 @@ onMounted(() => {
       <div class="left-column">
         <CharacterPanel />
         <ActionPanel @open-gift="showGiftModal = true" />
+        <ReminderPanel />
       </div>
       
       <div class="right-column">
