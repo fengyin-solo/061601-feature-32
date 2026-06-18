@@ -189,7 +189,7 @@ export interface ReminderContext {
   currentDay: number
   characters: { id: string; affinity: number; unlocked: boolean }[]
   triggeredEvents: string[]
-  dismissedReminderIds: string[]
+  readReminderIds: string[]
   advanceDays: number
 }
 
@@ -217,7 +217,7 @@ export function computeUpcomingReminders(
     }
 
     const reminderId = `reminder_${event.id}_day${earliestDay}`
-    if (ctx.dismissedReminderIds.includes(reminderId)) continue
+    if (ctx.readReminderIds.includes(reminderId)) continue
 
     const type = classifyEventType(event)
     const charConfig = event.characterId

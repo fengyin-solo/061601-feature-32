@@ -68,7 +68,7 @@ export const useGameStore = defineStore('game', () => {
   const collectedCards = ref<string[]>([])
   const logs = ref<LogEntry[]>([])
   const history = ref<HistorySnapshot[]>([])
-  const dismissedReminderIds = ref<string[]>([])
+  const readReminders = ref<Reminder[]>([])
   let logIdCounter = 0
 
   const unlockedCharacters = computed(() =>
@@ -85,6 +85,8 @@ export const useGameStore = defineStore('game', () => {
 
   const REMINDER_ADVANCE_DAYS = 5
 
+  const readReminderIds = computed(() => readReminders.value.map(r => r.id))
+
   const upcomingReminders = computed<Reminder[]>(() =>
     computeUpcomingReminders(gameConfig.events, gameConfig.characters, {
       currentDay: day.value,
@@ -94,7 +96,7 @@ export const useGameStore = defineStore('game', () => {
         unlocked: c.unlocked
       })),
       triggeredEvents: triggeredEvents.value,
-      dismissedReminderIds: dismissedReminderIds.value,
+      readReminderIds: readReminderIds.value,
       advanceDays: REMINDER_ADVANCE_DAYS
     })
   )
@@ -438,10 +440,9 @@ export const useGameStore = defineStore('game', () => {
     darkMode.value = !darkMode.value
   }
 
-  function dismissReminder(reminderId: string) {
-    if (!dismissedReminderIds.value.includes(reminderId)) {
-      dismissedReminderIds.value.push(reminderId)
-    }
+  function markReminderRead(reminder: Reminder) {
+    if (readReminderIds.value.includes(reminder.id)) return
+    readReminders.value.push({ ...reminder, dismissed: true })
   }
 
   function resetGame() {
@@ -465,7 +466,7 @@ export const useGameStore = defineStore('game', () => {
     collectedCards.value = []
     logs.value = []
     history.value = []
-    dismissedReminderIds.value = []
+    readReminders.value = []
     logIdCounter = 0
 
     addLog('system', '🎮 游戏开始！欢迎来到恋爱物语')
@@ -499,7 +500,8 @@ export const useGameStore = defineStore('game', () => {
     darkMode,
     upcomingReminders,
     activeReminderCount,
-    dismissedReminderIds,
+    readReminders,
+    readReminderIds,
     addLog,
     saveHistory,
     rollbackToStep,
@@ -510,7 +512,7 @@ export const useGameStore = defineStore('game', () => {
     selectCharacter,
     handleEventChoice,
     toggleDarkMode,
-    dismissReminder,
+    markReminderRead,
     resetGame,
     initGame,
     checkAndTriggerEvent

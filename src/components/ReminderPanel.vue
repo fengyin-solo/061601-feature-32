@@ -7,16 +7,29 @@ import type { ReminderType, Reminder } from '../types/game'
 const gameStore = useGameStore()
 
 const expanded = ref(true)
+const activeTab = ref<'unread' | 'read'>('unread')
 const filterType = ref<ReminderType | 'all'>('all')
 
+const unreadReminders = computed(() => gameStore.upcomingReminders)
+
+const readRemindersList = computed(() =>
+  [...gameStore.readReminders].reverse()
+)
+
+const currentList = computed(() =>
+  activeTab.value === 'unread' ? unreadReminders.value : readRemindersList.value
+)
+
 const filteredReminders = computed(() => {
-  const list = gameStore.upcomingReminders
+  const list = currentList.value
   if (filterType.value === 'all') return list
   return list.filter(r => r.type === filterType.value)
 })
 
-const availableTypes = computed(() => {
-  const types = new Set(gameStore.upcomingReminders.map(r => r.type))
+const allTypes = computed(() => {
+  const types = new Set<ReminderType>()
+  unreadReminders.value.forEach(r => types.add(r.type))
+  readRemindersList.value.forEach(r => types.add(r.type))
   return Array.from(types)
 })
 
@@ -26,13 +39,14 @@ function daysUntil(targetDay: number): number {
 
 function daysUntilLabel(targetDay: number): string {
   const d = daysUntil(targetDay)
+  if (d <= 0) return '已到'
   if (d === 1) return '明天'
   if (d === 2) return '后天'
   return `${d}天后`
 }
 
-function dismiss(reminder: Reminder) {
-  gameStore.dismissReminder(reminder.id)
+function markRead(reminder: Reminder) {
+  gameStore.markReminderRead(reminder)
 }
 
 function toggleExpand() {
@@ -54,7 +68,30 @@ function toggleExpand() {
     </div>
 
     <div v-if="expanded" class="reminder-body">
-      <div v-if="availableTypes.length > 1" class="filter-bar">
+      <div class="tab-bar">
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'unread' }"
+          @click="activeTab = 'unread'"
+        >
+          待看
+          <span v-if="gameStore.activeReminderCount > 0" class="tab-count">
+            {{ gameStore.activeReminderCount }}
+          </span>
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'read' }"
+          @click="activeTab = 'read'"
+        >
+          已读
+          <span v-if="gameStore.readReminders.length > 0" class="tab-count muted">
+            {{ gameStore.readReminders.length }}
+          </span>
+        </button>
+      </div>
+
+      <div v-if="allTypes.length > 1" class="filter-bar">
         <button
           class="filter-btn"
           :class="{ active: filterType === 'all' }"
@@ -63,7 +100,7 @@ function toggleExpand() {
           全部
         </button>
         <button
-          v-for="t in availableTypes"
+          v-for="t in allTypes"
           :key="t"
           class="filter-btn"
           :class="{ active: filterType === t }"
@@ -78,7 +115,7 @@ function toggleExpand() {
           v-for="reminder in filteredReminders"
           :key="reminder.id"
           class="reminder-item"
-          :class="'type-' + reminder.type"
+          :class="['type-' + reminder.type, { read: activeTab === 'read' }]"
         >
           <div class="reminder-main">
             <div class="reminder-title-row">
@@ -87,6 +124,7 @@ function toggleExpand() {
                 :style="{ backgroundColor: getReminderTypeColor(reminder.type) }"
               ></span>
               <span class="reminder-title">{{ reminder.title }}</span>
+              <span v-if="activeTab === 'read'" class="read-tag">已读</span>
             </div>
             <p class="reminder-desc">{{ reminder.description }}</p>
             <div class="reminder-meta">
@@ -95,15 +133,20 @@ function toggleExpand() {
               </span>
             </div>
           </div>
-          <button class="dismiss-btn" @click.stop="dismiss(reminder)" title="关闭提醒">
+          <button
+            v-if="activeTab === 'unread'"
+            class="dismiss-btn"
+            @click.stop="markRead(reminder)"
+            title="标为已读"
+          >
             ✕
           </button>
         </div>
       </div>
 
       <div v-else class="empty-reminder">
-        <span class="empty-icon">✨</span>
-        <span>暂无近期提醒</span>
+        <span class="empty-icon">{{ activeTab === 'unread' ? '✨' : '📭' }}</span>
+        <span>{{ activeTab === 'unread' ? '暂无近期提醒' : '暂无已读提醒' }}</span>
       </div>
     </div>
   </div>
@@ -177,6 +220,54 @@ function toggleExpand() {
   animation: fadeIn 0.3s ease-out;
 }
 
+.tab-bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 3px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  background: #ef4444;
+  color: white;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.tab-count.muted {
+  background: var(--text-muted);
+}
+
 .filter-bar {
   display: flex;
   gap: 6px;
@@ -221,6 +312,14 @@ function toggleExpand() {
 
 .reminder-item:hover {
   transform: translateX(2px);
+}
+
+.reminder-item.read {
+  opacity: 0.7;
+}
+
+.reminder-item.read:hover {
+  opacity: 1;
 }
 
 .reminder-item.type-birthday {
@@ -282,6 +381,15 @@ function toggleExpand() {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.read-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .reminder-desc {
